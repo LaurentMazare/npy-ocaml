@@ -3,4 +3,5 @@
 *.o
 *.native
 *.cm*
+*.npy
 _build

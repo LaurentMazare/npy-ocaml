@@ -61,3 +61,12 @@ let write bigarray filename =
   in
   Bigarray.Genarray.blit bigarray file_array;
   Unix.close file_descr
+
+let write1 array1 filename =
+  write (Bigarray.genarray_of_array1 array1) filename
+
+let write2 array2 filename =
+  write (Bigarray.genarray_of_array2 array2) filename
+
+let write3 array3 filename =
+  write (Bigarray.genarray_of_array3 array3) filename
