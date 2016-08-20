@@ -13,7 +13,9 @@ let save_dummy_array filename =
       Bigarray.Array2.set bigarray idx1 idx2 (idx1 + idx2 * dim1 |> float)
     done;
   done;
-  Npy.write (Bigarray.genarray_of_array2 bigarray) filename
+  Npy.write (Bigarray.genarray_of_array2 bigarray) filename;
+  let content = Npy.read_only_mmap filename in
+  ignore content
 
 let () =
   save_dummy_array "test.npy"
