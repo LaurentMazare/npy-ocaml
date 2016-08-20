@@ -4,12 +4,20 @@ let magic_string = "\147NUMPY"
 let magic_string_len = String.length magic_string
 
 let dtype (type a b) (bigarray : (a, b, _) Bigarray.Genarray.t) =
-  match Bigarray.Genarray.kind bigarray with
-  | Bigarray.Int32 -> "<i4"
-  | Bigarray.Int64 -> "<i8"
-  | Bigarray.Float32 -> "<f4"
-  | Bigarray.Float64 -> "<f8"
-  | _ -> failwith "TODO"
+  let endianness =
+    if Sys.big_endian
+    then ">"
+    else "<"
+  in
+  let kind =
+    match Bigarray.Genarray.kind bigarray with
+    | Bigarray.Int32 -> "i4"
+    | Bigarray.Int64 -> "i8"
+    | Bigarray.Float32 -> "f4"
+    | Bigarray.Float64 -> "f8"
+    | _ -> failwith "Not supported yet."
+  in
+  endianness ^ kind
 
 let fortran_order (type a) (bigarray : (_, _, a) Bigarray.Genarray.t) =
   match Bigarray.Genarray.layout bigarray with
