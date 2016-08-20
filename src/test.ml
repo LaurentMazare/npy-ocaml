@@ -23,7 +23,7 @@ let save_dummy_array filename =
     done;
   done;
   Npy.write2 bigarray filename;
-  let Npy.P array2 = Npy.read_only_mmap filename in
+  let Npy.P array2 = Npy.read_mmap filename ~shared:false in
   let array2 = Bigarray.array2_of_genarray array2 in
   match Bigarray.Array2.kind array2 with
   | Bigarray.Float32 -> print_array2 array2

@@ -171,9 +171,24 @@ module Header = struct
       | Not_found -> raise (Read_error (Printf.sprintf "cannot find field %s" field))
     in
     let kind =
-      match find_field "descr" with
-      | "<f4" -> P Float32
-      | "<f8" -> P Float64
+      let kind = find_field "descr" in
+      begin
+        match kind.[0] with
+        | '=' -> ()
+        | '>' ->
+          if not Sys.big_endian
+          then raise (Read_error "big endian data but arch is little endian")
+        | '<' ->
+          if Sys.big_endian
+          then raise (Read_error "little endian data but arch is big endian")
+        | otherwise ->
+          raise (Read_error (Printf.sprintf "incorrect endianness %c" otherwise))
+      end;
+      match String.sub kind 1 (String.length kind - 1) with
+      | "f4" -> P Float32
+      | "f8" -> P Float64
+      | "i4" -> P Int32
+      | "i8" -> P Int64
       | otherwise ->
         raise (Read_error (Printf.sprintf "incorrect descr %s" otherwise))
     in
@@ -196,7 +211,7 @@ end
 
 type packed_array = P : (_, _, _) Bigarray.Genarray.t -> packed_array
 
-let read_only_mmap filename =
+let read_mmap filename ~shared =
   with_file filename [ O_RDONLY ] 0 ~f:(fun file_descr ->
     let magic_string' = really_read file_descr magic_string_len in
     if magic_string <> magic_string'
@@ -224,7 +239,7 @@ let read_only_mmap filename =
           ~pos:(Int64.of_int (header_len + header_len_len + magic_string_len + 2))
           kind
           layout
-          false
+          shared
           header.shape)
     in
     if header.fortran_order then build Fortran_layout else build C_layout
