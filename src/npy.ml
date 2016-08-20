@@ -15,7 +15,15 @@ let dtype (type a b) (bigarray : (a, b, _) Bigarray.Genarray.t) =
     | Bigarray.Int64 -> "i8"
     | Bigarray.Float32 -> "f4"
     | Bigarray.Float64 -> "f8"
-    | _ -> failwith "Not supported yet."
+    | Bigarray.Int8_unsigned -> "u1"
+    | Bigarray.Int8_signed -> "i1"
+    | Bigarray.Int16_unsigned -> "u2"
+    | Bigarray.Int16_signed -> "i2"
+    | Bigarray.Char -> "ubyte"
+    | Bigarray.Complex32 -> "c8" (* 2 32bits float. *)
+    | Bigarray.Complex64 -> "c16" (* 2 64bits float. *)
+    | Bigarray.Int -> failwith "Int is not supported"
+    | Bigarray.Nativeint -> failwith "Nativeint is not supported."
   in
   endianness ^ kind
 
