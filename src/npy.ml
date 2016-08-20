@@ -1,5 +1,6 @@
 exception Cannot_write
 exception Read_error of string
+let read_error fmt = Printf.ksprintf (fun s -> raise (Read_error s)) fmt
 
 let magic_string = "\147NUMPY"
 let magic_string_len = String.length magic_string
@@ -105,7 +106,7 @@ let really_read fd len =
     if read + offset < len
     then loop (read + offset)
     else if read = 0
-    then raise (Read_error "unexpected eof")
+    then read_error "unexpected eof"
   in
   loop 0;
   buffer
@@ -162,13 +163,13 @@ module Header = struct
         match split header_field ~on:':' with
         | [ name; value ] ->
           trim name ~on:[ '\''; ' ' ], trim value ~on:[ '\''; ' '; '('; ')' ]
-        | _ -> raise (Read_error (Printf.sprintf "unable to parse field %s" header_field)))
+        | _ -> read_error "unable to parse field %s" header_field)
     in
     let find_field field =
       try
         List.assoc field header_fields
       with
-      | Not_found -> raise (Read_error (Printf.sprintf "cannot find field %s" field))
+      | Not_found -> read_error "cannot find field %s" field
     in
     let kind =
       let kind = find_field "descr" in
@@ -177,27 +178,31 @@ module Header = struct
         | '=' -> ()
         | '>' ->
           if not Sys.big_endian
-          then raise (Read_error "big endian data but arch is little endian")
+          then read_error "big endian data but arch is little endian"
         | '<' ->
           if Sys.big_endian
-          then raise (Read_error "little endian data but arch is big endian")
-        | otherwise ->
-          raise (Read_error (Printf.sprintf "incorrect endianness %c" otherwise))
+          then read_error "little endian data but arch is big endian"
+        | otherwise -> read_error "incorrect endianness %c" otherwise
       end;
       match String.sub kind 1 (String.length kind - 1) with
       | "f4" -> P Float32
       | "f8" -> P Float64
       | "i4" -> P Int32
       | "i8" -> P Int64
-      | otherwise ->
-        raise (Read_error (Printf.sprintf "incorrect descr %s" otherwise))
+      | "u1" -> P Int8_unsigned
+      | "i1" -> P Int8_signed
+      | "u2" -> P Int16_unsigned
+      | "i2" -> P Int16_signed
+      | "ubyte" -> P Char
+      | "c8" -> P Complex32
+      | "c16" -> P Complex64
+      | otherwise -> read_error "incorrect descr %s" otherwise
     in
     let fortran_order =
       match find_field "fortran_order" with
       | "False" -> false
       | "True" -> true
-      | otherwise ->
-        raise (Read_error (Printf.sprintf "incorrect fortran_order %s" otherwise))
+      | otherwise -> read_error "incorrect fortran_order %s" otherwise
     in
     let shape =
       find_field "shape"
@@ -215,13 +220,13 @@ let read_mmap filename ~shared =
   with_file filename [ O_RDONLY ] 0 ~f:(fun file_descr ->
     let magic_string' = really_read file_descr magic_string_len in
     if magic_string <> magic_string'
-    then raise (Read_error "magic string mismatch");
+    then read_error "magic string mismatch";
     let version = really_read file_descr 2 |> fun v -> v.[0] |> Char.code in
     let header_len_len =
       match version with
       | 1 -> 2
       | 2 -> 4
-      | _ -> raise (Read_error (Printf.sprintf "unsupported version %d" version))
+      | _ -> read_error "unsupported version %d" version
     in
     let header, header_len =
       really_read file_descr header_len_len
@@ -242,5 +247,15 @@ let read_mmap filename ~shared =
           shared
           header.shape)
     in
-    if header.fortran_order then build Fortran_layout else build C_layout
-  )
+    if header.fortran_order then build Fortran_layout else build C_layout)
+
+let read_copy filename =
+  let P array = read_mmap filename ~shared:false in
+  let result =
+    Bigarray.Genarray.create
+      (Bigarray.Genarray.kind array)
+      (Bigarray.Genarray.layout array)
+      (Bigarray.Genarray.dims array)
+  in
+  Bigarray.Genarray.blit array result;
+  P result

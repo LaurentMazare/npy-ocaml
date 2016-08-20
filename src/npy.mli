@@ -9,3 +9,5 @@ type packed_array = P : (_, _, _) Bigarray.Genarray.t -> packed_array
     of [filename]. If [shared] is [true] modifications made to the array are reflected
     to the file. *)
 val read_mmap : string -> shared:bool -> packed_array
+
+val read_copy : string -> packed_array
