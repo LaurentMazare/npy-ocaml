@@ -215,6 +215,9 @@ module Header = struct
 end
 
 type packed_array = P : (_, _, _) Bigarray.Genarray.t -> packed_array
+type packed_array1 = P1 : (_, _, _) Bigarray.Array1.t -> packed_array1
+type packed_array2 = P2 : (_, _, _) Bigarray.Array2.t -> packed_array2
+type packed_array3 = P3 : (_, _, _) Bigarray.Array3.t -> packed_array3
 
 let read_mmap filename ~shared =
   with_file filename [ O_RDONLY ] 0 ~f:(fun file_descr ->
@@ -249,6 +252,18 @@ let read_mmap filename ~shared =
     in
     if header.fortran_order then build Fortran_layout else build C_layout)
 
+let read_mmap1 filename ~shared =
+  let P array = read_mmap filename ~shared in
+  P1 (Bigarray.array1_of_genarray array)
+
+let read_mmap2 filename ~shared =
+  let P array = read_mmap filename ~shared in
+  P2 (Bigarray.array2_of_genarray array)
+
+let read_mmap3 filename ~shared =
+  let P array = read_mmap filename ~shared in
+  P3 (Bigarray.array3_of_genarray array)
+
 let read_copy filename =
   let P array = read_mmap filename ~shared:false in
   let result =
@@ -259,3 +274,15 @@ let read_copy filename =
   in
   Bigarray.Genarray.blit array result;
   P result
+
+let read_copy1 filename =
+  let P array = read_copy filename in
+  P1 (Bigarray.array1_of_genarray array)
+
+let read_copy2 filename =
+  let P array = read_copy filename in
+  P2 (Bigarray.array2_of_genarray array)
+
+let read_copy3 filename =
+  let P array = read_copy filename in
+  P3 (Bigarray.array3_of_genarray array)
