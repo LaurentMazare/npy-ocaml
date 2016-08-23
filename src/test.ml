@@ -1,14 +1,5 @@
 let verbose = false
 
-let md5sum filename =
-  let in_channel =
-    Unix.open_process_in
-      (Printf.sprintf "md5sum %s | cut -d ' ' -f 1" filename)
-  in
-  let md5 = input_line in_channel in
-  assert (Unix.close_process_in in_channel = WEXITED 0);
-  md5
-
 (* Saves a npy file and reread it checking that the read content is identical. *)
 let save_and_read (type a b) (array : (a, b, Bigarray.c_layout) Bigarray.Genarray.t) filename =
   Npy.write array filename;
@@ -66,12 +57,12 @@ let save_with_python (type a b) (array : (a, b, Bigarray.c_layout) Bigarray.Gena
 *)
 let run_test (type a b) (array : (a, b, Bigarray.c_layout) Bigarray.Genarray.t) filename =
   save_and_read array filename;
-  let md5 = md5sum filename in
+  let md5 = Digest.file filename in
   let python_filename = "p" ^ filename in
   save_with_python array python_filename;
-  let md5p = md5sum python_filename in
+  let md5p = Digest.file python_filename in
   if verbose
-  then Printf.printf "%s %s %s\n%!" filename md5 md5p;
+  then Printf.printf "%s %s %s\n%!" filename (Digest.to_hex md5) (Digest.to_hex md5p);
   assert (md5 = md5p)
 
 let array2_test (type a) (kind : (a, _) Bigarray.kind) (random : unit -> a) filename ~dim1 ~dim2 =
