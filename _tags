@@ -1,3 +1,5 @@
 true: warn(A-4-29-40-41-42-44-45-48-56-58)
 true: warn_error(A-4-29-40-41-42-44-45-48-56-58)
 true: use_unix, use_bigarray
+<src/*>: for-pack(Npy)
+<src>: include
