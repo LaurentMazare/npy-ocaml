@@ -1,0 +1,9 @@
+lib: [
+  "_build/src/npy.a" {"npy.a"}
+  "_build/src/npy.cmxa" {"npy.cmxa"}
+  "_build/src/npy.cma" {"npy.cma"}
+  "_build/src/npy.cmxs" {"npy.cmxs"}
+  "_build/src/npy.cmx" {"npy.cmx"}
+  "_build/src/npy.cmi" {"npy.cmi"}
+  "META"
+]

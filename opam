@@ -1,0 +1,26 @@
+opam-version: "1.2"
+name:         "npy"
+bug-reports:  "https://github.com/LaurentMazare/npy-ocaml/issues"
+homepage:     "https://github.com/LaurentMazare/npy-ocaml"
+dev-repo:     "git+https://github.com/LaurentMazare/npy-ocaml.git"
+maintainer:   "Laurent Mazare <lmazare@gmail.com>"
+authors:      [ "Laurent Mazare" ]
+
+version: "dev"
+
+build:   [make "npy.lib"]
+install: []
+remove:  []
+
+depends: [
+  "ocamlfind" {build}
+  "ocamlbuild" {build}
+]
+
+depopts: [
+]
+
+conflicts: [
+]
+
+available: [ ocaml-version >= "4.00.0" ]
