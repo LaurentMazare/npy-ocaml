@@ -220,37 +220,49 @@ type packed_array2 = P2 : (_, _, _) Bigarray.Array2.t -> packed_array2
 type packed_array3 = P3 : (_, _, _) Bigarray.Array3.t -> packed_array3
 
 let read_mmap filename ~shared =
-  with_file filename [ O_RDONLY ] 0 ~f:(fun file_descr ->
-    let magic_string' = really_read file_descr magic_string_len in
-    if magic_string <> magic_string'
-    then read_error "magic string mismatch";
-    let version = really_read file_descr 2 |> fun v -> v.[0] |> Char.code in
-    let header_len_len =
-      match version with
-      | 1 -> 2
-      | 2 -> 4
-      | _ -> read_error "unsupported version %d" version
+  let file_descr = Unix.openfile filename [ O_RDONLY ] 0 in
+  let pos, header =
+    try
+      let magic_string' = really_read file_descr magic_string_len in
+      if magic_string <> magic_string'
+      then read_error "magic string mismatch";
+      let version = really_read file_descr 2 |> fun v -> v.[0] |> Char.code in
+      let header_len_len =
+        match version with
+        | 1 -> 2
+        | 2 -> 4
+        | _ -> read_error "unsupported version %d" version
+      in
+      let header, header_len =
+        really_read file_descr header_len_len
+        |> fun str ->
+        let header_len = ref 0 in
+        for i = String.length str - 1 downto 0 do
+          header_len := 256 * !header_len + Char.code str.[i]
+        done;
+        really_read file_descr !header_len, !header_len
+      in
+      let header = Header.parse header in
+      Int64.of_int (header_len + header_len_len + magic_string_len + 2), header
+    with
+    | exn ->
+      Unix.close file_descr;
+      raise exn
+  in
+  let Header.P kind = header.kind in
+  let build layout =
+    let array =
+      Bigarray.Genarray.map_file file_descr
+        ~pos
+        kind
+        layout
+        shared
+        header.shape
     in
-    let header, header_len =
-      really_read file_descr header_len_len
-      |> fun str ->
-      let header_len = ref 0 in
-      for i = String.length str - 1 downto 0 do
-        header_len := 256 * !header_len + Char.code str.[i]
-      done;
-      really_read file_descr !header_len, !header_len
-    in
-    let header = Header.parse header in
-    let Header.P kind = header.kind in
-    let build layout =
-      P (Bigarray.Genarray.map_file file_descr
-          ~pos:(Int64.of_int (header_len + header_len_len + magic_string_len + 2))
-          kind
-          layout
-          shared
-          header.shape)
-    in
-    if header.fortran_order then build Fortran_layout else build C_layout)
+    Gc.finalise (fun _ -> Unix.close file_descr) array;
+    P array
+  in
+  if header.fortran_order then build Fortran_layout else build C_layout
 
 let read_mmap1 filename ~shared =
   let P array = read_mmap filename ~shared in
