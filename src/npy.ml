@@ -208,6 +208,7 @@ module Header = struct
       find_field "shape"
       |> split ~on:','
       |> List.map String.trim
+      |> List.filter (fun s -> String.length s > 0)
       |> List.map int_of_string
       |> Array.of_list
     in
