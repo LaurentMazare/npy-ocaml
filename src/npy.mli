@@ -7,14 +7,12 @@ module Batch_writer : sig
   type t
 
   val create
-    :  (_, _, _) Bigarray.Genarray.t
-    -> string
-    -> total_len:int
+    :  string
     -> t
 
   val append
     :  t
-    -> (_, _, _) Bigarray.Genarray.t
+    -> (_, _, Bigarray.c_layout) Bigarray.Genarray.t
     -> unit
 
   val close : t -> unit

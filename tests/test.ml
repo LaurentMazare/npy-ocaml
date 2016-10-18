@@ -50,6 +50,19 @@ let save_with_python (type a b) (array : (a, b, Bigarray.c_layout) Bigarray.Gena
   | Bigarray.Int64 -> run array Int64.to_string "i8"
   | _ -> assert false
 
+let load_and_save_using_python input_filename output_filename =
+  let cmd =
+    Printf.sprintf
+      "python -c 'import numpy as np\n\
+                  arr = np.load(\"%s\")\n\
+                  np.save(\"%s\", arr)'"
+      input_filename
+      output_filename
+  in
+  if verbose
+  then Printf.printf "Running: %s\n\n%!" cmd;
+  assert (Unix.system cmd = WEXITED 0)
+
 (* - Save a npy file using the library.
    - Load the npy file, check that the content is identical to the input.
    - Save the npy file using python and numpy.
@@ -66,14 +79,15 @@ let run_test (type a b) (array : (a, b, Bigarray.c_layout) Bigarray.Genarray.t) 
   assert (md5 = md5p);
   let batch_filename = "b" ^ filename in
   let total_len = Bigarray.Genarray.nth_dim array 0 in
-  let first_line = Bigarray.Genarray.sub_left array 0 1 in
-  let batch_writer = Npy.Batch_writer.create first_line batch_filename ~total_len in
-  for line_idx = 1 to total_len - 1 do
+  let batch_writer = Npy.Batch_writer.create batch_filename in
+  for line_idx = 0 to total_len - 1 do
     let line = Bigarray.Genarray.sub_left array line_idx 1 in
     Npy.Batch_writer.append batch_writer line
   done;
   Npy.Batch_writer.close batch_writer;
-  let md5b = Digest.file batch_filename in
+  let batchp_filename = "bp" ^ filename in
+  load_and_save_using_python batch_filename batchp_filename;
+  let md5b = Digest.file batchp_filename in
   if verbose
   then Printf.printf "%s %s %s\n%!" filename (Digest.to_hex md5) (Digest.to_hex md5b);
   assert (md5 = md5b)

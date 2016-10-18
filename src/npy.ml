@@ -51,9 +51,9 @@ let shape (type a) ~len_override (bigarray : (_, _, a) Bigarray.Genarray.t) =
   |> List.map string_of_int
   |> String.concat ", "
 
-(* The first (for C layout) or last (for Fortran layout) dimension will be replaced
+(* The first (for C layout) or last (for Fortran layout) dimension will be replace
    by [len_override] if provided. *)
-let full_header ?len_override bigarray =
+let full_header ?len_override ?header_len bigarray =
   let header =
     Printf.sprintf
       "{'descr': '%s', 'fortran_order': %s, 'shape': (%s), }"
@@ -63,9 +63,17 @@ let full_header ?len_override bigarray =
   in
   let padding_len =
     let total_len = String.length header + magic_string_len + 4 + 1 in
-    if total_len mod 16 = 0
-    then 0
-    else 16 - total_len mod 16
+    match header_len with
+    | None ->
+      if total_len mod 16 = 0
+      then 0
+      else 16 - total_len mod 16
+    | Some header_len ->
+      if header_len mod 16 <> 0
+      then failwith "header_len has to be divisible by 16";
+      if header_len < total_len
+      then failwith "header_len is smaller than total_len";
+      header_len - total_len
   in
   let total_header_len = String.length header + padding_len + 1 in
   Printf.sprintf "%s\001\000%c%c%s%s\n"
@@ -113,9 +121,13 @@ let write3 array3 filename =
   write (Bigarray.genarray_of_array3 array3) filename
 
 module Batch_writer = struct
+  let header_len = 128
+
   type t =
     { file_descr : Unix.file_descr
     ; mutable bytes_written_so_far : int
+    ; mutable rows : int
+    ; mutable header : string
     }
 
   let append t bigarray =
@@ -130,23 +142,22 @@ module Batch_writer = struct
     in
     Bigarray.Genarray.blit bigarray file_array;
     let size_in_bytes = Bigarray.Genarray.size_in_bytes bigarray in
-    t.bytes_written_so_far <- t.bytes_written_so_far + size_in_bytes
+    t.bytes_written_so_far <- t.bytes_written_so_far + size_in_bytes;
+    t.rows <- t.rows + Bigarray.Genarray.nth_dim bigarray 0;
+    t.header <- full_header ~len_override:t.rows ~header_len bigarray
 
-  let create first_batch filename ~total_len =
+  let create filename =
     let file_descr = Unix.openfile filename [ O_CREAT; O_TRUNC; O_RDWR ] 0o640 in
-    let full_header = full_header ~len_override:total_len first_batch in
-    let full_header_len = String.length full_header in
-    if Unix.write file_descr full_header 0 full_header_len <> full_header_len
-    then raise Cannot_write;
-    let t =
-      { file_descr
-      ; bytes_written_so_far = full_header_len
-      }
-    in
-    append t first_batch;
-    t
+    { file_descr
+    ; bytes_written_so_far = header_len
+    ; rows = 0
+    ; header = ""
+    }
 
   let close t =
+    assert (Unix.lseek t.file_descr 0 SEEK_SET = 0);
+    if Unix.write t.file_descr t.header 0 header_len <> header_len
+    then raise Cannot_write;
     Unix.close t.file_descr;
 end
 
