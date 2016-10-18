@@ -34,19 +34,32 @@ let fortran_order (type a) (bigarray : (_, _, a) Bigarray.Genarray.t) =
   | Bigarray.C_layout -> "False"
   | Bigarray.Fortran_layout -> "True"
 
-let shape bigarray =
-  Bigarray.Genarray.dims bigarray
-  |> Array.to_list
+let shape (type a) ~len_override (bigarray : (_, _, a) Bigarray.Genarray.t) =
+  let dims = Bigarray.Genarray.dims bigarray in
+  begin
+    match len_override with
+    | None -> ()
+    | Some len_override ->
+      let index =
+        match Bigarray.Genarray.layout bigarray with
+        | Bigarray.C_layout -> 0
+        | Bigarray.Fortran_layout -> Array.length dims - 1
+      in
+      dims.(index) <- len_override;
+  end;
+  Array.to_list dims
   |> List.map string_of_int
   |> String.concat ", "
 
-let full_header bigarray =
+(* The first (for C layout) or last (for Fortran layout) dimension will be replaced
+   by [len_override] if provided. *)
+let full_header ?len_override bigarray =
   let header =
     Printf.sprintf
       "{'descr': '%s', 'fortran_order': %s, 'shape': (%s), }"
       (dtype bigarray)
       (fortran_order bigarray)
-      (shape bigarray)
+      (shape ~len_override bigarray)
   in
   let padding_len =
     let total_len = String.length header + magic_string_len + 4 + 1 in
@@ -98,6 +111,44 @@ let write2 array2 filename =
 
 let write3 array3 filename =
   write (Bigarray.genarray_of_array3 array3) filename
+
+module Batch_writer = struct
+  type t =
+    { file_descr : Unix.file_descr
+    ; mutable bytes_written_so_far : int
+    }
+
+  let append t bigarray =
+    let file_array =
+      Bigarray.Genarray.map_file
+        ~pos:(Int64.of_int t.bytes_written_so_far)
+        t.file_descr
+        (Bigarray.Genarray.kind bigarray)
+        (Bigarray.Genarray.layout bigarray)
+        true
+        (Bigarray.Genarray.dims bigarray)
+    in
+    Bigarray.Genarray.blit bigarray file_array;
+    let size_in_bytes = Bigarray.Genarray.size_in_bytes bigarray in
+    t.bytes_written_so_far <- t.bytes_written_so_far + size_in_bytes
+
+  let create first_batch filename ~total_len =
+    let file_descr = Unix.openfile filename [ O_CREAT; O_TRUNC; O_RDWR ] 0o640 in
+    let full_header = full_header ~len_override:total_len first_batch in
+    let full_header_len = String.length full_header in
+    if Unix.write file_descr full_header 0 full_header_len <> full_header_len
+    then raise Cannot_write;
+    let t =
+      { file_descr
+      ; bytes_written_so_far = full_header_len
+      }
+    in
+    append t first_batch;
+    t
+
+  let close t =
+    Unix.close t.file_descr;
+end
 
 let really_read fd len =
   let buffer = Bytes.create len in

@@ -3,6 +3,23 @@ val write2 : ('a, 'b, 'c) Bigarray.Array2.t -> string -> unit
 val write3 : ('a, 'b, 'c) Bigarray.Array3.t -> string -> unit
 val write : ('a, 'b, 'c) Bigarray.Genarray.t -> string -> unit
 
+module Batch_writer : sig
+  type t
+
+  val create
+    :  (_, _, _) Bigarray.Genarray.t
+    -> string
+    -> total_len:int
+    -> t
+
+  val append
+    :  t
+    -> (_, _, _) Bigarray.Genarray.t
+    -> unit
+
+  val close : t -> unit
+end
+
 type packed_array = P : (_, _, _) Bigarray.Genarray.t -> packed_array
 type packed_array1 = P1 : (_, _, _) Bigarray.Array1.t -> packed_array1
 type packed_array2 = P2 : (_, _, _) Bigarray.Array2.t -> packed_array2

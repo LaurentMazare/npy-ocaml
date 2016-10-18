@@ -63,7 +63,20 @@ let run_test (type a b) (array : (a, b, Bigarray.c_layout) Bigarray.Genarray.t) 
   let md5p = Digest.file python_filename in
   if verbose
   then Printf.printf "%s %s %s\n%!" filename (Digest.to_hex md5) (Digest.to_hex md5p);
-  assert (md5 = md5p)
+  assert (md5 = md5p);
+  let batch_filename = "b" ^ filename in
+  let total_len = Bigarray.Genarray.nth_dim array 0 in
+  let first_line = Bigarray.Genarray.sub_left array 0 1 in
+  let batch_writer = Npy.Batch_writer.create first_line batch_filename ~total_len in
+  for line_idx = 1 to total_len - 1 do
+    let line = Bigarray.Genarray.sub_left array line_idx 1 in
+    Npy.Batch_writer.append batch_writer line
+  done;
+  Npy.Batch_writer.close batch_writer;
+  let md5b = Digest.file batch_filename in
+  if verbose
+  then Printf.printf "%s %s %s\n%!" filename (Digest.to_hex md5) (Digest.to_hex md5b);
+  assert (md5 = md5b)
 
 let array2_test (type a) (kind : (a, _) Bigarray.kind) (random : unit -> a) filename ~dim1 ~dim2 =
   let bigarray =
@@ -91,3 +104,5 @@ let () =
   array2_test Float64 random_float "test2.npy" ~dim1:8 ~dim2:21;
   array2_test Int32 random_int32 "test3.npy" ~dim1:7 ~dim2:4;
   array2_test Int64 random_int64 "test4.npy" ~dim1:8 ~dim2:21;
+  let p = Npy.read_mmap "test.npy" ~shared:false in
+  ignore p
