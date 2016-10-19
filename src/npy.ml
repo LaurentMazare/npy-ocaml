@@ -5,61 +5,49 @@ let read_error fmt = Printf.ksprintf (fun s -> raise (Read_error s)) fmt
 let magic_string = "\147NUMPY"
 let magic_string_len = String.length magic_string
 
-let dtype (type a b) (bigarray : (a, b, _) Bigarray.Genarray.t) =
+type packed_kind = P : (_, _) Bigarray.kind -> packed_kind
+
+let dtype ~packed_kind =
   let endianness =
     if Sys.big_endian
     then ">"
     else "<"
   in
   let kind =
-    match Bigarray.Genarray.kind bigarray with
-    | Bigarray.Int32 -> "i4"
-    | Bigarray.Int64 -> "i8"
-    | Bigarray.Float32 -> "f4"
-    | Bigarray.Float64 -> "f8"
-    | Bigarray.Int8_unsigned -> "u1"
-    | Bigarray.Int8_signed -> "i1"
-    | Bigarray.Int16_unsigned -> "u2"
-    | Bigarray.Int16_signed -> "i2"
-    | Bigarray.Char -> "ubyte"
-    | Bigarray.Complex32 -> "c8" (* 2 32bits float. *)
-    | Bigarray.Complex64 -> "c16" (* 2 64bits float. *)
-    | Bigarray.Int -> failwith "Int is not supported"
-    | Bigarray.Nativeint -> failwith "Nativeint is not supported."
+    match packed_kind with
+    | P Bigarray.Int32 -> "i4"
+    | P Bigarray.Int64 -> "i8"
+    | P Bigarray.Float32 -> "f4"
+    | P Bigarray.Float64 -> "f8"
+    | P Bigarray.Int8_unsigned -> "u1"
+    | P Bigarray.Int8_signed -> "i1"
+    | P Bigarray.Int16_unsigned -> "u2"
+    | P Bigarray.Int16_signed -> "i2"
+    | P Bigarray.Char -> "ubyte"
+    | P Bigarray.Complex32 -> "c8" (* 2 32bits float. *)
+    | P Bigarray.Complex64 -> "c16" (* 2 64bits float. *)
+    | P Bigarray.Int -> failwith "Int is not supported"
+    | P Bigarray.Nativeint -> failwith "Nativeint is not supported."
   in
   endianness ^ kind
 
-let fortran_order (type a) (bigarray : (_, _, a) Bigarray.Genarray.t) =
-  match Bigarray.Genarray.layout bigarray with
+let fortran_order (type a) ~(layout : a Bigarray.layout) =
+  match layout with
   | Bigarray.C_layout -> "False"
   | Bigarray.Fortran_layout -> "True"
 
-let shape (type a) ~len_override (bigarray : (_, _, a) Bigarray.Genarray.t) =
-  let dims = Bigarray.Genarray.dims bigarray in
-  begin
-    match len_override with
-    | None -> ()
-    | Some len_override ->
-      let index =
-        match Bigarray.Genarray.layout bigarray with
-        | Bigarray.C_layout -> 0
-        | Bigarray.Fortran_layout -> Array.length dims - 1
-      in
-      dims.(index) <- len_override;
-  end;
+let shape ~dims =
   Array.to_list dims
   |> List.map string_of_int
   |> String.concat ", "
 
-(* The first (for C layout) or last (for Fortran layout) dimension will be replace
-   by [len_override] if provided. *)
-let full_header ?len_override ?header_len bigarray =
+let full_header ?header_len ~layout ~packed_kind ~dims () =
   let header =
     Printf.sprintf
       "{'descr': '%s', 'fortran_order': %s, 'shape': (%s), }"
-      (dtype bigarray)
-      (fortran_order bigarray)
-      (shape ~len_override bigarray)
+      (dtype ~packed_kind)
+      (fortran_order ~layout)
+      (shape ~dims)
   in
   let padding_len =
     let total_len = String.length header + magic_string_len + 4 + 1 in
@@ -96,7 +84,12 @@ let with_file filename flags mask ~f =
 
 let write bigarray filename =
   with_file filename [ O_CREAT; O_TRUNC; O_RDWR ] 0o640 ~f:(fun file_descr ->
-    let full_header = full_header bigarray in
+    let full_header =
+      full_header ()
+        ~layout:(Bigarray.Genarray.layout bigarray)
+        ~packed_kind:(P (Bigarray.Genarray.kind bigarray))
+        ~dims:(Bigarray.Genarray.dims bigarray)
+    in
     let full_header_len = String.length full_header in
     if Unix.write file_descr full_header 0 full_header_len <> full_header_len
     then raise Cannot_write;
@@ -126,8 +119,7 @@ module Batch_writer = struct
   type t =
     { file_descr : Unix.file_descr
     ; mutable bytes_written_so_far : int
-    ; mutable rows : int
-    ; mutable header : string
+    ; mutable dims_and_packed_kind : (int array * packed_kind) option
     }
 
   let append t bigarray =
@@ -143,20 +135,41 @@ module Batch_writer = struct
     Bigarray.Genarray.blit bigarray file_array;
     let size_in_bytes = Bigarray.Genarray.size_in_bytes bigarray in
     t.bytes_written_so_far <- t.bytes_written_so_far + size_in_bytes;
-    t.rows <- t.rows + Bigarray.Genarray.nth_dim bigarray 0;
-    t.header <- full_header ~len_override:t.rows ~header_len bigarray
+    match t.dims_and_packed_kind with
+    | None ->
+      let dims = Bigarray.Genarray.dims bigarray in
+      let kind = Bigarray.Genarray.kind bigarray in
+      t.dims_and_packed_kind <- Some (dims, P kind)
+    | Some (dims, _kind) ->
+      let dims' = Bigarray.Genarray.dims bigarray in
+      let incorrect_dimensions =
+        match Array.to_list dims, Array.to_list dims' with
+        | [], _ | _, [] -> true
+        | _ :: d, _ :: d' -> d <> d'
+      in
+      if incorrect_dimensions
+      then
+        Printf.sprintf "Incorrect dimensions %s vs %s."
+          (shape ~dims) (shape ~dims:dims')
+        |> failwith;
+      dims.(0) <- dims.(0) + dims'.(0)
 
   let create filename =
     let file_descr = Unix.openfile filename [ O_CREAT; O_TRUNC; O_RDWR ] 0o640 in
     { file_descr
     ; bytes_written_so_far = header_len
-    ; rows = 0
-    ; header = ""
+    ; dims_and_packed_kind = None
     }
 
   let close t =
     assert (Unix.lseek t.file_descr 0 SEEK_SET = 0);
-    if Unix.write t.file_descr t.header 0 header_len <> header_len
+    let header =
+      match t.dims_and_packed_kind with
+      | None -> failwith "Nothing to write"
+      | Some (dims, packed_kind) ->
+        full_header ~header_len ~layout:C_layout ~dims ~packed_kind ()
+    in
+    if Unix.write t.file_descr header 0 header_len <> header_len
     then raise Cannot_write;
     Unix.close t.file_descr;
 end
