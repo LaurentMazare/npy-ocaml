@@ -1,6 +1,6 @@
 version = "0.0.1"
 description = "Numpy npy file format."
-requires = "unix bigarray str bytes"
+requires = "unix bigarray str bytes camlzip"
 archive(byte) = "npy.cma"
 archive(byte, plugin) = "npy.cma"
 archive(native) = "npy.cmxa"

@@ -121,6 +121,38 @@ let array2_test ?python_save (type a) (kind : (a, _) Bigarray.kind) (random : un
   done;
   run_test ?python_save (Bigarray.genarray_of_array2 bigarray) filename
 
+let to_array1 bigarray =
+  match Bigarray.Genarray.dims bigarray with
+  | [| n |] -> Array.init n (fun i -> Bigarray.Genarray.get bigarray [| i |])
+  | _ -> assert false
+
+let to_array2 bigarray =
+  match Bigarray.Genarray.dims bigarray with
+  | [| n; m |] ->
+    Array.init n (fun i ->
+      Array.init m (fun j -> Bigarray.Genarray.get bigarray [| i; j |]))
+  | _ -> assert false
+
+let npz_test () =
+  let npz = Npy.Npz.create "test.npz" in
+  let Npy.P array1 = Npy.Npz.read_copy npz "test1.npy" in
+  let Npy.P array2 = Npy.Npz.read_copy npz "test2.npy" in
+  begin
+    match Bigarray.Genarray.kind array1 with
+    | Bigarray.Float32 ->
+      let array1 = to_array1 array1 in
+      assert (array1 = [| 1.; 2.; 3. |]);
+    | _ -> assert false
+  end;
+  begin
+    match Bigarray.Genarray.kind array2 with
+    | Bigarray.Float32 ->
+      let array2 = to_array2 array2 in
+      assert (array2 = [| [| 4.; 5.; 6. |]; [| 7.; 8.; 9. |] |]);
+    | _ -> assert false
+  end;
+  Npy.Npz.close npz
+
 let () =
   Random.init 42;
   let random_float () = Random.float 1e9 |> floor in
@@ -134,5 +166,4 @@ let () =
   array2_test Int64 random_int64 "test_g.npy" ~dim1:8 ~dim2:21;
   array2_test ~python_save:false Float64 random_float "test_g.npy"
     ~dim1:65536 ~dim2:512;
-  let p = Npy.read_mmap "test.npy" ~shared:false in
-  ignore p
+  npz_test ()

@@ -374,3 +374,25 @@ let read_copy2 filename =
 let read_copy3 filename =
   let P array = read_copy filename in
   P3 (Bigarray.array3_of_genarray array)
+
+module Npz = struct
+  type t =
+    { filename : string
+    ; in_file : Zip.in_file
+    }
+
+  let create filename =
+    { filename
+    ; in_file = Zip.open_in filename
+    }
+
+  let close t = Zip.close_in t.in_file
+
+  let read_copy t array_name =
+    let entry = Zip.find_entry t.in_file array_name in
+    let tmp_file = Filename.temp_file "ocaml-npz" ".tmp" in
+    Zip.copy_entry_to_file t.in_file entry tmp_file;
+    let data = read_copy tmp_file in
+    Sys.remove tmp_file;
+    data
+end

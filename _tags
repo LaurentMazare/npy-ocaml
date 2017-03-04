@@ -1,5 +1,6 @@
+true: package(camlzip)
 true: warn(A-4-29-40-41-42-44-45-48-56-58)
 true: warn_error(A-4-29-40-41-42-44-45-48-56-58)
 <src/*>: for-pack(Npy)
-<tests/*.native>: use_unix, use_bigarray
+<tests/*.native>: use_bigarray
 <src>: include

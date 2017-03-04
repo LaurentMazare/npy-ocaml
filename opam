@@ -13,6 +13,7 @@ install: []
 remove:  []
 
 depends: [
+  "camlzip"
   "ocamlfind" {build}
   "ocamlbuild" {build}
 ]

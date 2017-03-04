@@ -35,3 +35,10 @@ val read_copy : string -> packed_array
 val read_copy1 : string -> packed_array1
 val read_copy2 : string -> packed_array2
 val read_copy3 : string -> packed_array3
+
+module Npz : sig
+  type t
+  val create : string -> t
+  val read_copy : t -> string -> packed_array
+  val close : t -> unit
+end
