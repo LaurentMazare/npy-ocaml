@@ -134,7 +134,7 @@ let to_array2 bigarray =
   | _ -> assert false
 
 let npz_test () =
-  let npz = Npy.Npz.create "test.npz" in
+  let npz = Npy.Npz.create "tests/test.npz" in
   let Npy.P array1 = Npy.Npz.read_copy npz "test1.npy" in
   let Npy.P array2 = Npy.Npz.read_copy npz "test2.npy" in
   begin
