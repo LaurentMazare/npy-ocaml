@@ -133,25 +133,43 @@ let to_array2 bigarray =
       Array.init m (fun j -> Bigarray.Genarray.get bigarray [| i; j |]))
   | _ -> assert false
 
-let npz_test () =
-  let npz = Npy.Npz.create "tests/test.npz" in
-  let Npy.P array1 = Npy.Npz.read_copy npz "test1.npy" in
-  let Npy.P array2 = Npy.Npz.read_copy npz "test2.npy" in
+let npz_test ~use_python_generated_file =
+  let array1_v = [| 1.; 2.; 3. |] in
+  let array2_v = [| [| 4.; 5.; 6. |]; [| 7.; 8.; 9. |] |] in
+  let npz_file =
+    if use_python_generated_file
+    then "tests/test.npz"
+    else begin
+      let tmp_file = Filename.temp_file "ocaml-npz-test" ".tmp" in
+      let npz_out = Npy.Npz.open_out tmp_file in
+      Npy.Npz.write npz_out "test1"
+        (Bigarray.Array1.of_array Float32 C_layout array1_v |> Bigarray.genarray_of_array1);
+      Npy.Npz.write npz_out "test2"
+        (Bigarray.Array2.of_array Float32 C_layout array2_v |> Bigarray.genarray_of_array2);
+      Npy.Npz.close_out npz_out;
+      tmp_file
+    end
+  in
+  let npz = Npy.Npz.open_in npz_file in
+  let Npy.P array1 = Npy.Npz.read npz "test1" in
+  let Npy.P array2 = Npy.Npz.read npz "test2" in
   begin
     match Bigarray.Genarray.kind array1 with
     | Bigarray.Float32 ->
       let array1 = to_array1 array1 in
-      assert (array1 = [| 1.; 2.; 3. |]);
+      assert (array1 = array1_v)
     | _ -> assert false
   end;
   begin
     match Bigarray.Genarray.kind array2 with
     | Bigarray.Float32 ->
       let array2 = to_array2 array2 in
-      assert (array2 = [| [| 4.; 5.; 6. |]; [| 7.; 8.; 9. |] |]);
+      assert (array2 = array2_v)
     | _ -> assert false
   end;
-  Npy.Npz.close npz
+  Npy.Npz.close_in npz;
+  if not use_python_generated_file
+  then Sys.remove npz_file
 
 let () =
   Random.init 42;
@@ -166,4 +184,5 @@ let () =
   array2_test Int64 random_int64 "test_g.npy" ~dim1:8 ~dim2:21;
   array2_test ~python_save:false Float64 random_float "test_g.npy"
     ~dim1:65536 ~dim2:512;
-  npz_test ()
+  npz_test ~use_python_generated_file:true;
+  npz_test ~use_python_generated_file:false

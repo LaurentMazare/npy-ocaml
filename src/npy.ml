@@ -376,23 +376,39 @@ let read_copy3 filename =
   P3 (Bigarray.array3_of_genarray array)
 
 module Npz = struct
-  type t =
-    { filename : string
-    ; in_file : Zip.in_file
-    }
+  let maybe_add_suffix array_name ~suffix =
+    let suffix =
+      match suffix with
+      | None -> ".npy"
+      | Some suffix -> suffix
+    in
+    array_name ^ suffix
 
-  let create filename =
-    { filename
-    ; in_file = Zip.open_in filename
-    }
+  type in_file = Zip.in_file
 
-  let close t = Zip.close_in t.in_file
+  let open_in = Zip.open_in
 
-  let read_copy t array_name =
-    let entry = Zip.find_entry t.in_file array_name in
+  let close_in = Zip.close_in
+
+  let read ?suffix t array_name =
+    let array_name = maybe_add_suffix array_name ~suffix in
+    let entry = Zip.find_entry t array_name in
     let tmp_file = Filename.temp_file "ocaml-npz" ".tmp" in
-    Zip.copy_entry_to_file t.in_file entry tmp_file;
+    Zip.copy_entry_to_file t entry tmp_file;
     let data = read_copy tmp_file in
     Sys.remove tmp_file;
     data
+
+  type out_file = Zip.out_file
+
+  let open_out filename = Zip.open_out filename
+
+  let close_out = Zip.close_out
+
+  let write ?suffix t array_name array =
+    let array_name = maybe_add_suffix array_name ~suffix in
+    let tmp_file = Filename.temp_file "ocaml-npz" ".tmp" in
+    write array tmp_file;
+    Zip.copy_file_to_entry tmp_file t array_name;
+    Sys.remove tmp_file
 end

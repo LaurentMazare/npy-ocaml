@@ -37,8 +37,13 @@ val read_copy2 : string -> packed_array2
 val read_copy3 : string -> packed_array3
 
 module Npz : sig
-  type t
-  val create : string -> t
-  val read_copy : t -> string -> packed_array
-  val close : t -> unit
+  type in_file
+  val open_in : string -> in_file
+  val read : ?suffix:string -> in_file -> string -> packed_array
+  val close_in : in_file -> unit
+
+  type out_file
+  val open_out : string -> out_file
+  val write : ?suffix:string -> out_file -> string -> ('a, 'b, 'c) Bigarray.Genarray.t -> unit
+  val close_out : out_file -> unit
 end
