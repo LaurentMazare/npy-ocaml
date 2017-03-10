@@ -138,7 +138,7 @@ let npz_test ~use_python_generated_file =
   let array2_v = [| [| 4.; 5.; 6. |]; [| 7.; 8.; 9. |] |] in
   let npz_file =
     if use_python_generated_file
-    then "tests/test.npz"
+    then "test.npz"
     else begin
       let tmp_file = Filename.temp_file "ocaml-npz-test" ".tmp" in
       let npz_out = Npy.Npz.open_out tmp_file in

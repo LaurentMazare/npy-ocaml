@@ -1,11 +1,10 @@
 npy.lib: .FORCE
-	ocamlbuild npy.cmxa npy.cma npy.cmxs npy.cmx
+	jbuilder build src/npy.cmi src/npy.cmxa
 
 test:
-	ocamlbuild tests/test.native
-	./test.native
+	jbuilder runtest
 
 clean:
-	rm -Rf _build *.native *.npy
+	rm -Rf _build
 
 .FORCE:

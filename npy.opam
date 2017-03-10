@@ -8,14 +8,14 @@ authors:      [ "Laurent Mazare" ]
 
 version: "dev"
 
-build:   [make "npy.lib"]
+build: [["jbuilder" "build" "--only-packages" "npy" "--root" "." "-j" jobs "@install"]]
 install: []
 remove:  []
 
 depends: [
   "camlzip"
   "ocamlfind" {build}
-  "ocamlbuild" {build}
+  "jbuilder" {build}
 ]
 
 depopts: [

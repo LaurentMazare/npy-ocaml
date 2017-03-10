@@ -1,0 +1,7 @@
+B ../_build/default/src
+B ../_build/default/tests
+FLG -w -40
+PKG bigarray
+PKG camlzip
+PKG unix
+S .
