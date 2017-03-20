@@ -1,5 +1,5 @@
-npy.lib: .FORCE
-	jbuilder build src/npy.cmi src/npy.cmxa
+all:
+	jbuilder build @install
 
 test:
 	jbuilder runtest
