@@ -412,3 +412,84 @@ module Npz = struct
     Zip.copy_file_to_entry tmp_file t array_name;
     Sys.remove tmp_file
 end
+
+(** Type equalities module, used in conversion function *)
+module Eq = struct
+
+  (** An equality type to extract type equalities *)
+  type ('a,'b) t = W : ('a,'a) t
+
+  open Bigarray
+
+  (** Type equalities for bigarray kinds *)
+  module Kind = struct
+    let (===): type a b c d. (a,b) kind -> (c,d) kind ->
+      ((a,b) kind, (c,d) kind) t option = fun x y ->
+      match x,y with
+      | Float32, Float32               -> Some W
+      | Float64, Float64               -> Some W
+      | Int8_signed, Int8_signed       -> Some W
+      | Int8_unsigned, Int8_unsigned   -> Some W
+      | Int16_signed, Int16_signed     -> Some W
+      | Int16_unsigned, Int16_unsigned -> Some W
+      | Int32, Int32                   -> Some W
+      | Int64, Int64                   -> Some W
+      | Int, Int                       -> Some W
+      | Nativeint, Nativeint           -> Some W
+      | Complex32, Complex32           -> Some W
+      | Complex64, Complex64           -> Some W
+      | Char, Char                     -> Some W
+      | _ -> None
+  end
+
+  (** Type equalities for layout *)
+  module Layout = struct
+    let (===): type a b. a layout -> b layout -> (a layout, b layout) t option=
+      fun x y -> match x, y with
+        | Fortran_layout, Fortran_layout -> Some W
+        | C_layout, C_layout -> Some W
+        | _, _ -> None
+  end
+end
+
+(** Conversion functions from packed arrays to bigarrays *)
+
+let to_bigarray (type a b c) (layout:c Bigarray.layout) (kind:(a,b) Bigarray.kind)
+    (P x) =
+  match Eq.Layout.( Bigarray.Genarray.layout x === layout ) with
+    | None -> None
+    | Some Eq.W ->
+      match Eq.Kind.( Bigarray.Genarray.kind x === kind ) with
+      | None -> None
+      | Some Eq.W ->
+        Some(x:(a,b,c) Bigarray.Genarray.t)
+
+let to_bigarray1 (type a b c) (layout:c Bigarray.layout) (kind:(a,b) Bigarray.kind)
+    (P1 x) =
+  match Eq.Layout.( Bigarray.Array1.layout x === layout ) with
+    | None -> None
+    | Some Eq.W ->
+      match Eq.Kind.( Bigarray.Array1.kind x === kind ) with
+      | None -> None
+      | Some Eq.W ->
+        Some(x:(a,b,c) Bigarray.Array1.t)
+
+let to_bigarray2 (type a b c) (layout:c Bigarray.layout) (kind:(a,b) Bigarray.kind)
+    (P2 x) =
+  match Eq.Layout.( Bigarray.Array2.layout x === layout ) with
+    | None -> None
+    | Some Eq.W ->
+      match Eq.Kind.( Bigarray.Array2.kind x === kind ) with
+      | None -> None
+      | Some Eq.W ->
+        Some(x:(a,b,c) Bigarray.Array2.t)
+
+let to_bigarray3 (type a b c) (layout:c Bigarray.layout) (kind:(a,b) Bigarray.kind)
+    (P3 x) =
+  match Eq.Layout.( Bigarray.Array3.layout x === layout ) with
+    | None -> None
+    | Some Eq.W ->
+      match Eq.Kind.( Bigarray.Array3.kind x === kind ) with
+      | None -> None
+      | Some Eq.W ->
+        Some(x:(a,b,c) Bigarray.Array3.t)

@@ -47,3 +47,31 @@ module Npz : sig
   val write : ?suffix:string -> out_file -> string -> ('a, 'b, 'c) Bigarray.Genarray.t -> unit
   val close_out : out_file -> unit
 end
+
+
+(** Conversion functions from packed arrays to bigarrays *)
+
+val to_bigarray:
+  'c Bigarray.layout -> ('a,'b) Bigarray.kind -> packed_array ->
+  ('a,'b,'c) Bigarray.Genarray.t option
+(** [to_bigarray layout kind packed_array] returns [Some a] with
+    [a] a [Bigarray.Genarray.t] if the layout and the kind of [packed_array]
+    were equal to the [layout] and [kind] arguments. Otherwise, [to_bigarray]
+    returns [None]
+*)
+
+val to_bigarray1:
+  'c Bigarray.layout -> ('a,'b) Bigarray.kind -> packed_array1 ->
+  ('a,'b,'c) Bigarray.Array1.t option
+(** Same as {!to_bigarray} for [Bigarray.Array1.t] *)
+
+
+val to_bigarray2:
+  'c Bigarray.layout -> ('a,'b) Bigarray.kind -> packed_array2 ->
+  ('a,'b,'c) Bigarray.Array2.t option
+(** Same as {!to_bigarray} for [Bigarray.Array2.t] *)
+
+val to_bigarray3:
+  'c Bigarray.layout -> ('a,'b) Bigarray.kind -> packed_array3 ->
+  ('a,'b,'c) Bigarray.Array3.t option
+(** Same as {!to_bigarray} for [Bigarray.Array3.t} *)
