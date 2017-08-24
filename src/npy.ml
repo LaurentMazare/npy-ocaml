@@ -37,9 +37,12 @@ let fortran_order (type a) ~(layout : a Bigarray.layout) =
   | Bigarray.Fortran_layout -> "True"
 
 let shape ~dims =
-  Array.to_list dims
-  |> List.map string_of_int
-  |> String.concat ", "
+  match dims with
+  | [| dim1 |] -> Printf.sprintf "%d," dim1
+  | dims ->
+    Array.to_list dims
+    |> List.map string_of_int
+    |> String.concat ", "
 
 let full_header ?header_len ~layout ~packed_kind ~dims () =
   let header =

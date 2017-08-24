@@ -106,6 +106,13 @@ let run_test
   then Printf.printf "%s %s %s\n%!" filename (Digest.to_hex md5) (Digest.to_hex md5b);
   assert (md5 = md5b)
 
+let array1_test ?python_save (type a) (kind : (a, _) Bigarray.kind) (random : unit -> a) filename ~dim =
+  let bigarray = Bigarray.Array1.create kind C_layout dim in
+  for idx = 0 to dim - 1 do
+    Bigarray.Array1.set bigarray idx (random ())
+  done;
+  run_test ?python_save (Bigarray.genarray_of_array1 bigarray) filename
+
 let array2_test ?python_save (type a) (kind : (a, _) Bigarray.kind) (random : unit -> a) filename ~dim1 ~dim2 =
   let bigarray =
     Bigarray.Array2.create
@@ -184,5 +191,6 @@ let () =
   array2_test Int64 random_int64 "test_g.npy" ~dim1:8 ~dim2:21;
   array2_test ~python_save:false Float64 random_float "test_g.npy"
     ~dim1:65536 ~dim2:512;
+  array1_test Float64 random_float "test_g.npy" ~dim:21;
   npz_test ~use_python_generated_file:true;
   npz_test ~use_python_generated_file:false
