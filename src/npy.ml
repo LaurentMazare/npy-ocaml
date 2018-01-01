@@ -92,10 +92,9 @@ let write bigarray filename =
         ~layout:(Bigarray.Genarray.layout bigarray)
         ~packed_kind:(P (Bigarray.Genarray.kind bigarray))
         ~dims:(Bigarray.Genarray.dims bigarray)
-      |> Bytes.of_string
     in
-    let full_header_len = Bytes.length full_header in
-    if Unix.write file_descr full_header 0 full_header_len <> full_header_len
+    let full_header_len = String.length full_header in
+    if Unix.write_substring file_descr full_header 0 full_header_len <> full_header_len
     then raise Cannot_write;
     let file_array =
       Unix.map_file
@@ -172,9 +171,8 @@ module Batch_writer = struct
       | None -> failwith "Nothing to write"
       | Some (dims, packed_kind) ->
         full_header ~header_len ~layout:C_layout ~dims ~packed_kind ()
-        |> Bytes.of_string
     in
-    if Unix.write t.file_descr header 0 header_len <> header_len
+    if Unix.write_substring t.file_descr header 0 header_len <> header_len
     then raise Cannot_write;
     Unix.close t.file_descr;
 end
@@ -189,7 +187,7 @@ let really_read fd len =
     then read_error "unexpected eof"
   in
   loop 0;
-  buffer
+  Bytes.to_string buffer
 
 module Header = struct
   type packed_kind = P : (_, _) Bigarray.kind -> packed_kind
@@ -305,9 +303,9 @@ let read_mmap filename ~shared =
   let pos, header =
     try
       let magic_string' = really_read file_descr magic_string_len in
-      if (Bytes.of_string magic_string) <> magic_string'
+      if magic_string <> magic_string'
       then read_error "magic string mismatch";
-      let version = really_read file_descr 2 |> fun v -> Bytes.get v 0 |> Char.code in
+      let version = really_read file_descr 2 |> fun v -> String.get v 0 |> Char.code in
       let header_len_len =
         match version with
         | 1 -> 2
@@ -318,12 +316,12 @@ let read_mmap filename ~shared =
         really_read file_descr header_len_len
         |> fun str ->
         let header_len = ref 0 in
-        for i = Bytes.length str - 1 downto 0 do
-          header_len := 256 * !header_len + Char.code (Bytes.get str i)
+        for i = String.length str - 1 downto 0 do
+          header_len := 256 * !header_len + Char.code (String.get str i)
         done;
         really_read file_descr !header_len, !header_len
       in
-      let header = Header.parse (Bytes.to_string header) in
+      let header = Header.parse header in
       Int64.of_int (header_len + header_len_len + magic_string_len + 2), header
     with
     | exn ->
