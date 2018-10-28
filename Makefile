@@ -1,8 +1,8 @@
 all:
-	jbuilder build @install
+	dune build @install
 
 test:
-	jbuilder runtest
+	dune runtest
 
 clean:
 	rm -Rf _build

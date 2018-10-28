@@ -1,6 +1,0 @@
-(jbuild_version 1)
-
-(library
- ((name npy)
-  (public_name npy)
-  (libraries (bigarray camlzip))))

@@ -1,0 +1,8 @@
+(executables
+ (names test)
+ (libraries npy))
+
+(alias
+ (name    runtest)
+ (deps    test.exe test.npz)
+ (action  (bash ./test.exe)))

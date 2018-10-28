@@ -1,4 +1,4 @@
-opam-version: "1.2"
+opam-version: "2.0"
 name:         "npy"
 bug-reports:  "https://github.com/LaurentMazare/npy-ocaml/issues"
 homepage:     "https://github.com/LaurentMazare/npy-ocaml"
@@ -8,14 +8,13 @@ authors:      [ "Laurent Mazare" ]
 
 version: "dev"
 
-build: [["jbuilder" "build" "--only-packages" "npy" "--root" "." "-j" jobs "@install"]]
+build: [["dune" "build" name "-j" jobs]]
 install: []
 remove:  []
 
 depends: [
   "camlzip"
-  "ocamlfind" {build}
-  "jbuilder" {build}
+  "dune" {build}
 ]
 
 depopts: [
