@@ -85,10 +85,11 @@ let with_file filename flags mask ~f =
     Unix.close file_descr;
     raise exn
 
-let write bigarray filename =
+let write ?header_len bigarray filename =
   with_file filename [ O_CREAT; O_TRUNC; O_RDWR ] 0o640 ~f:(fun file_descr ->
     let full_header =
       full_header ()
+        ?header_len
         ~layout:(Bigarray.Genarray.layout bigarray)
         ~packed_kind:(P (Bigarray.Genarray.kind bigarray))
         ~dims:(Bigarray.Genarray.dims bigarray)

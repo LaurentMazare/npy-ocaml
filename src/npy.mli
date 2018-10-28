@@ -1,7 +1,13 @@
 val write1 : ('a, 'b, 'c) Bigarray.Array1.t -> string -> unit
 val write2 : ('a, 'b, 'c) Bigarray.Array2.t -> string -> unit
 val write3 : ('a, 'b, 'c) Bigarray.Array3.t -> string -> unit
-val write : ('a, 'b, 'c) Bigarray.Genarray.t -> string -> unit
+
+(** [write ?header_len bigarray filename] writes a npy file [filename]
+    with the content of [bigarray].
+    [header_len] can be used to override the npy header length. This is
+    only useful for testing.
+*)
+val write : ?header_len:int -> ('a, 'b, 'c) Bigarray.Genarray.t -> string -> unit
 
 module Batch_writer : sig
   type t

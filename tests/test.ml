@@ -1,8 +1,8 @@
 let verbose = false
 
 (* Saves a npy file and reread it checking that the read content is identical. *)
-let save_and_read (type a b) (array : (a, b, Bigarray.c_layout) Bigarray.Genarray.t) filename =
-  Npy.write array filename;
+let save_and_read ?header_len (type a b) (array : (a, b, Bigarray.c_layout) Bigarray.Genarray.t) filename =
+  Npy.write ?header_len array filename;
   let Npy.P rarray = Npy.read_mmap filename ~shared:false in
   begin
     match Bigarray.Genarray.layout rarray with
@@ -75,7 +75,7 @@ let run_test
       (array : (a, b, Bigarray.c_layout) Bigarray.Genarray.t)
       filename
   =
-  save_and_read array filename;
+  save_and_read ~header_len:128 array filename;
   let md5 = Digest.file filename in
   if python_save
   then begin
