@@ -392,6 +392,8 @@ module Npz = struct
 
   let open_in = Zip.open_in
 
+  let entries t = Zip.entries t |> List.map (fun entry -> entry.Zip.filename)
+
   let close_in = Zip.close_in
 
   let read ?suffix t array_name =

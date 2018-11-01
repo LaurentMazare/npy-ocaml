@@ -46,6 +46,7 @@ module Npz : sig
   type in_file
   val open_in : string -> in_file
   val read : ?suffix:string -> in_file -> string -> packed_array
+  val entries : in_file -> string list
   val close_in : in_file -> unit
 
   type out_file
