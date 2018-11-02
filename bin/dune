@@ -1,0 +1,3 @@
+(executables
+ (names list_npz)
+ (libraries npy))

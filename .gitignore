@@ -5,3 +5,4 @@
 *.cm*
 *.npy
 _build
+.merlin

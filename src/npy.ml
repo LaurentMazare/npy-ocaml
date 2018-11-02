@@ -380,10 +380,12 @@ let read_copy3 filename =
   P3 (Bigarray.array3_of_genarray array)
 
 module Npz = struct
+  let npy_suffix = ".npy"
+
   let maybe_add_suffix array_name ~suffix =
     let suffix =
       match suffix with
-      | None -> ".npy"
+      | None -> npy_suffix
       | Some suffix -> suffix
     in
     array_name ^ suffix
@@ -392,13 +394,29 @@ module Npz = struct
 
   let open_in = Zip.open_in
 
-  let entries t = Zip.entries t |> List.map (fun entry -> entry.Zip.filename)
+  let entries t =
+    Zip.entries t
+    |> List.map (fun entry ->
+      let filename = entry.Zip.filename in
+      if String.length filename < String.length npy_suffix
+      then filename
+      else
+        let start_pos = String.length filename - String.length npy_suffix in
+        if String.sub filename start_pos (String.length npy_suffix) = npy_suffix
+        then String.sub filename 0 start_pos
+        else filename)
 
   let close_in = Zip.close_in
 
   let read ?suffix t array_name =
     let array_name = maybe_add_suffix array_name ~suffix in
-    let entry = Zip.find_entry t array_name in
+    let entry =
+      try
+        Zip.find_entry t array_name
+      with
+      | Not_found ->
+        raise (Invalid_argument ("unable to find " ^ array_name))
+    in
     let tmp_file = Filename.temp_file "ocaml-npz" ".tmp" in
     Zip.copy_entry_to_file t entry tmp_file;
     let data = read_copy tmp_file in

@@ -1,4 +1,7 @@
+ALL = bin/list_npz.exe \
+
 all:
+	dune build $(ALL)
 	dune build @install
 
 test:
