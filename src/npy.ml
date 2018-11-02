@@ -31,6 +31,20 @@ let dtype ~packed_kind =
   in
   endianness ^ kind
 
+let map_file file_descr ~pos kind layout shared shape =
+  let is_scalar = Array.length shape = 0 in
+  let array =
+    Unix.map_file file_descr
+      ~pos
+      kind
+      layout
+      shared
+      (if is_scalar then [| 1 |] else shape)
+  in
+  if is_scalar
+  then Bigarray.reshape array [||]
+  else array
+
 let fortran_order (type a) ~(layout : a Bigarray.layout) =
   match layout with
   | Bigarray.C_layout -> "False"
@@ -98,7 +112,7 @@ let write ?header_len bigarray filename =
     if Unix.write_substring file_descr full_header 0 full_header_len <> full_header_len
     then raise Cannot_write;
     let file_array =
-      Unix.map_file
+      map_file
         ~pos:(Int64.of_int full_header_len)
         file_descr
         (Bigarray.Genarray.kind bigarray)
@@ -128,7 +142,7 @@ module Batch_writer = struct
 
   let append t bigarray =
     let file_array =
-      Unix.map_file
+      map_file
         ~pos:(Int64.of_int t.bytes_written_so_far)
         t.file_descr
         (Bigarray.Genarray.kind bigarray)
@@ -332,7 +346,7 @@ let read_mmap filename ~shared =
   let Header.P kind = header.kind in
   let build layout =
     let array =
-      Unix.map_file file_descr
+      map_file file_descr
         ~pos
         kind
         layout
