@@ -15,6 +15,7 @@ remove:  []
 depends: [
   "camlzip"
   "dune" {build}
+  "ocaml" {>= "4.06"}
 ]
 
 depopts: [
@@ -22,5 +23,3 @@ depopts: [
 
 conflicts: [
 ]
-
-available: [ ocaml-version >= "4.05.0" ]
