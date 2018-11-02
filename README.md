@@ -1,5 +1,5 @@
 # npy-ocaml
-This contains a simple implementation of version 1.0 of the [npy format spec](http://docs.scipy.org/doc/numpy-dev/neps/npy-format.html). An opam package is available and can be installed via:
+This contains a simple implementation of version 1.0 of the [npy format spec](https://docs.scipy.org/doc/numpy-1.14.2/neps/npy-format.html). An opam package is available and can be installed via:
 
 ```bash
 opam install npy
