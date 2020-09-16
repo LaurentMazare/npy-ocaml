@@ -19,7 +19,7 @@ let dtype ~packed_kind =
     | P Bigarray.Int8_signed -> "i1"
     | P Bigarray.Int16_unsigned -> "u2"
     | P Bigarray.Int16_signed -> "i2"
-    | P Bigarray.Char -> "u1"
+    | P Bigarray.Char -> "ubyte"
     | P Bigarray.Complex32 -> "c8" (* 2 32bits float. *)
     | P Bigarray.Complex64 -> "c16" (* 2 64bits float. *)
     | P Bigarray.Int -> failwith "Int is not supported"
