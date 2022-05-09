@@ -279,7 +279,8 @@ type packed_array2 = P2 : (_, _, _) Bigarray.Array2.t -> packed_array2
 type packed_array3 = P3 : (_, _, _) Bigarray.Array3.t -> packed_array3
 
 let read_mmap filename ~shared =
-  let file_descr = Unix.openfile filename [O_RDONLY] 0 in
+  let access = if shared then Unix.O_RDWR else O_RDONLY in
+  let file_descr = Unix.openfile filename [access] 0 in
   let pos, header =
     try
       let magic_string' = really_read file_descr magic_string_len in
