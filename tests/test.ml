@@ -5,7 +5,8 @@ let save_and_read
     ?header_len
     (type a b)
     (array : (a, b, Bigarray.c_layout) Bigarray.Genarray.t)
-    filename =
+    filename
+  =
   Npy.write ?header_len array filename;
   let (Npy.P rarray) = Npy.read_mmap filename ~shared:false in
   match Bigarray.Genarray.layout rarray with
@@ -16,27 +17,35 @@ let save_and_read
     | Bigarray.Float64, Bigarray.Float64 -> assert (array = rarray)
     | Bigarray.Int32, Bigarray.Int32 -> assert (array = rarray)
     | Bigarray.Int64, Bigarray.Int64 -> assert (array = rarray)
+    (* Char arrays are saved as u1 and so load as uint8. *)
+    | Bigarray.Char, Bigarray.Char -> assert (array = rarray)
     | _ -> assert false)
 
 (* Save a npy file using python and numpy. *)
 let save_with_python
-    (type a b) (array : (a, b, Bigarray.c_layout) Bigarray.Genarray.t) filename =
+    (type a b)
+    (array : (a, b, Bigarray.c_layout) Bigarray.Genarray.t)
+    filename
+  =
   let run array to_string dtype =
     let rec to_string_loop dim idxs =
       if dim = Bigarray.Genarray.num_dims array
       then Bigarray.Genarray.get array (List.rev idxs |> Array.of_list) |> to_string
       else
         Array.init (Bigarray.Genarray.nth_dim array dim) (fun i ->
-            to_string_loop (dim + 1) (i :: idxs) )
+            to_string_loop (dim + 1) (i :: idxs))
         |> Array.to_list
         |> String.concat ", "
         |> Printf.sprintf "[ %s ]"
     in
     let cmd =
       Printf.sprintf
-        "python -c 'import numpy as np\n\
-         arr = np.array(%s)\n\
-         np.save(\"%s\", arr.astype(\"%s\"))'"
+        {|
+python -c '
+import numpy as np
+arr = np.array(%s)
+np.save("%s", arr.astype("%s"))'
+|}
         (to_string_loop 0 [])
         filename
         dtype
@@ -49,6 +58,8 @@ let save_with_python
   | Bigarray.Float64 -> run array string_of_float "f8"
   | Bigarray.Int32 -> run array Int32.to_string "i4"
   | Bigarray.Int64 -> run array Int64.to_string "i8"
+  | Bigarray.Char ->
+    run array (fun c -> Char.code c |> Printf.sprintf "b\"\\x%02x\"") "S1"
   | _ -> assert false
 
 let load_and_save_using_python input_filename output_filename =
@@ -72,7 +83,8 @@ let run_test
     ?(python_save = true)
     (type a b)
     (array : (a, b, Bigarray.c_layout) Bigarray.Genarray.t)
-    filename =
+    filename
+  =
   save_and_read ~header_len:128 array filename;
   let md5 = Digest.file filename in
   if python_save
@@ -82,7 +94,7 @@ let run_test
     let md5p = Digest.file python_filename in
     if verbose
     then Printf.printf "%s %s %s\n%!" filename (Digest.to_hex md5) (Digest.to_hex md5p);
-    assert (md5 = md5p) );
+    assert (md5 = md5p));
   let batch_filename = "b" ^ filename in
   let total_len = Bigarray.Genarray.nth_dim array 0 in
   let batch_writer = Npy.Batch_writer.create batch_filename in
@@ -91,9 +103,9 @@ let run_test
     let start_idx = batch_size * batch_idx in
     let batch_size = min total_len ((batch_idx + 1) * batch_size) - start_idx in
     if batch_size > 0
-    then
+    then (
       let lines = Bigarray.Genarray.sub_left array start_idx batch_size in
-      Npy.Batch_writer.append batch_writer lines
+      Npy.Batch_writer.append batch_writer lines)
   done;
   Npy.Batch_writer.close batch_writer;
   let batchp_filename = "bp" ^ filename in
@@ -109,7 +121,8 @@ let array1_test
     (kind : (a, _) Bigarray.kind)
     (random : unit -> a)
     filename
-    ~dim =
+    ~dim
+  =
   let bigarray = Bigarray.Array1.create kind C_layout dim in
   for idx = 0 to dim - 1 do
     bigarray.{idx} <- random ()
@@ -123,7 +136,8 @@ let array2_test
     (random : unit -> a)
     filename
     ~dim1
-    ~dim2 =
+    ~dim2
+  =
   let bigarray = Bigarray.Array2.create kind C_layout dim1 dim2 in
   for idx1 = 0 to dim1 - 1 do
     for idx2 = 0 to dim2 - 1 do
@@ -134,37 +148,35 @@ let array2_test
 
 let to_array1 bigarray =
   match Bigarray.Genarray.dims bigarray with
-  | [|n|] -> Array.init n (fun i -> Bigarray.Genarray.get bigarray [|i|])
+  | [| n |] -> Array.init n (fun i -> Bigarray.Genarray.get bigarray [| i |])
   | _ -> assert false
 
 let to_array2 bigarray =
   match Bigarray.Genarray.dims bigarray with
-  | [|n; m|] ->
-    Array.init n (fun i -> Array.init m (fun j -> Bigarray.Genarray.get bigarray [|i; j|])
-    )
+  | [| n; m |] ->
+    Array.init n (fun i ->
+        Array.init m (fun j -> Bigarray.Genarray.get bigarray [| i; j |]))
   | _ -> assert false
 
 let npz_test ~use_python_generated_file =
-  let array1_v = [|1.; 2.; 3.|] in
-  let array2_v = [|[|4.; 5.; 6.|]; [|7.; 8.; 9.|]|] in
+  let array1_v = [| 1.; 2.; 3. |] in
+  let array2_v = [| [| 4.; 5.; 6. |]; [| 7.; 8.; 9. |] |] in
   let npz_file =
     if use_python_generated_file
     then "test.npz"
-    else
+    else (
       let tmp_file = Filename.temp_file "ocaml-npz-test" ".tmp" in
       let npz_out = Npy.Npz.open_out tmp_file in
       Npy.Npz.write
         npz_out
         "test1"
-        ( Bigarray.Array1.of_array Float32 C_layout array1_v
-        |> Bigarray.genarray_of_array1 );
+        (Bigarray.Array1.of_array Float32 C_layout array1_v |> Bigarray.genarray_of_array1);
       Npy.Npz.write
         npz_out
         "test2"
-        ( Bigarray.Array2.of_array Float32 C_layout array2_v
-        |> Bigarray.genarray_of_array2 );
+        (Bigarray.Array2.of_array Float32 C_layout array2_v |> Bigarray.genarray_of_array2);
       Npy.Npz.close_out npz_out;
-      tmp_file
+      tmp_file)
   in
   let npz = Npy.Npz.open_in npz_file in
   let (Npy.P array1) = Npy.Npz.read npz "test1" in
@@ -185,6 +197,7 @@ let npz_test ~use_python_generated_file =
 let () =
   Random.init 42;
   let random_float () = Random.float 1e9 |> floor in
+  let random_char () = Random.int 255 |> Char.chr in
   let random_int32 () = Int32.sub (Random.int32 2_000_000l) 1_000_000l in
   let random_int64 () =
     Int64.sub (Random.int64 2_000_000_000_000_000L) 1_000_000_000_000_000L
@@ -195,5 +208,6 @@ let () =
   array2_test Int64 random_int64 "test_g.npy" ~dim1:8 ~dim2:21;
   array2_test ~python_save:false Float64 random_float "test_g.npy" ~dim1:65536 ~dim2:512;
   array1_test Float64 random_float "test_g.npy" ~dim:21;
+  array1_test Char random_char "test_g.npy" ~dim:21;
   npz_test ~use_python_generated_file:true;
   npz_test ~use_python_generated_file:false

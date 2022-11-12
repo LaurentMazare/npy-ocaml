@@ -1,7 +1,0 @@
-B /home/laurent/.opam/4.06.0/lib/camlzip/../zip
-B /home/laurent/.opam/4.06.0/lib/ocaml
-B ../_build/default/src/.npy.objs
-S /home/laurent/.opam/4.06.0/lib/camlzip/../zip
-S /home/laurent/.opam/4.06.0/lib/ocaml
-S .
-FLG -w @a-4-29-40-41-42-44-45-48-58-59-60-40 -strict-sequence -strict-formats -short-paths -keep-locs

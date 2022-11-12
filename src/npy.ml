@@ -8,7 +8,11 @@ let magic_string_len = String.length magic_string
 type packed_kind = P : (_, _) Bigarray.kind -> packed_kind
 
 let dtype ~packed_kind =
-  let endianness = if Sys.big_endian then ">" else "<" in
+  let endianness =
+    match packed_kind with
+    | P Bigarray.Char -> "|"
+    | P _ -> if Sys.big_endian then ">" else "<"
+  in
   let kind =
     match packed_kind with
     | P Bigarray.Int32 -> "i4"
@@ -19,7 +23,7 @@ let dtype ~packed_kind =
     | P Bigarray.Int8_signed -> "i1"
     | P Bigarray.Int16_unsigned -> "u2"
     | P Bigarray.Int16_signed -> "i2"
-    | P Bigarray.Char -> "u1"
+    | P Bigarray.Char -> "S1"
     | P Bigarray.Complex32 -> "c8" (* 2 32bits float. *)
     | P Bigarray.Complex64 -> "c16" (* 2 64bits float. *)
     | P Bigarray.Int -> failwith "Int is not supported"
@@ -236,7 +240,7 @@ module Header = struct
     let kind =
       let kind = find_field "descr" in
       (match kind.[0] with
-      | '=' -> ()
+      | '|' | '=' -> ()
       | '>' ->
         if not Sys.big_endian then read_error "big endian data but arch is little endian"
       | '<' ->
@@ -251,7 +255,7 @@ module Header = struct
       | "i1" -> P Int8_signed
       | "u2" -> P Int16_unsigned
       | "i2" -> P Int16_signed
-      | "ubyte" -> P Char
+      | "S1" -> P Char
       | "c8" -> P Complex32
       | "c16" -> P Complex64
       | otherwise -> read_error "incorrect descr %s" otherwise
